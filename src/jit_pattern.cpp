@@ -57,9 +57,6 @@ namespace mem
             return false;
         }
 
-        const byte* bytes = pattern.bytes();
-        const byte* masks = pattern.masks();
-
         using namespace asmjit;
 
         CodeHolder code;
@@ -70,7 +67,9 @@ namespace mem
 
         X86Gp V_Current = cc.newUIntPtr("Current");
         X86Gp V_End     = cc.newUIntPtr("End");
-        X86Gp V_Temp    = cc.newUInt8("Temp");
+        X86Gp V_Temp    = cc.newUIntPtr("Temp");
+        X86Gp V_Temp8   = V_Temp.r8();
+        X86Gp V_SkipTable;
 
         Label L_ScanLoop = cc.newLabel();
         Label L_NotFound = cc.newLabel();
@@ -79,9 +78,21 @@ namespace mem
         cc.setArg(0, V_Current);
         cc.setArg(1, V_End);
 
+        const size_t* skips = pattern.bad_char_skips();
+
+        if (skips && ASMJIT_ARCH_X64)
+        {
+            V_SkipTable = cc.newUIntPtr();
+
+            cc.mov(V_SkipTable, (uint64_t) skips);
+        }
+
         cc.bind(L_ScanLoop);
         cc.cmp(V_Current, V_End);
         cc.ja(L_NotFound);
+
+        const byte* bytes = pattern.bytes();
+        const byte* masks = pattern.masks();
 
         for (size_t i = size; i--;)
         {
@@ -96,9 +107,9 @@ namespace mem
                 }
                 else
                 {
-                    cc.mov(V_Temp, x86::byte_ptr(V_Current, static_cast<int32_t>(i)));
-                    cc.and_(V_Temp, mask);
-                    cc.cmp(V_Temp, byte);
+                    cc.mov(V_Temp8, x86::byte_ptr(V_Current, static_cast<int32_t>(i)));
+                    cc.and_(V_Temp8, mask);
+                    cc.cmp(V_Temp8, byte);
                 }
 
                 cc.jne(L_Next);
@@ -108,7 +119,27 @@ namespace mem
         cc.ret(V_Current);
 
         cc.bind(L_Next);
-        cc.inc(V_Current);
+
+        if (skips)
+        {
+            const size_t skip_pos = pattern.skip_pos();
+
+            cc.movzx(V_Temp, x86::byte_ptr(V_Current, static_cast<int32_t>(skip_pos)));
+
+            if (ASMJIT_ARCH_X64)
+            {
+                cc.add(V_Current, x86::ptr(V_SkipTable, V_Temp, ASMJIT_ARCH_X64 ? 3 : 2));
+            }
+            else
+            {
+                cc.add(V_Current, x86::ptr((uint64_t) skips, V_Temp, ASMJIT_ARCH_X64 ? 3 : 2));
+            }
+        }
+        else
+        {
+            cc.inc(V_Current);
+        }
+
         cc.jmp(L_ScanLoop);
 
         cc.bind(L_NotFound);
