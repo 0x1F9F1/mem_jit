@@ -21,6 +21,11 @@ namespace mem
 
     bool jit_pattern::compile(const pattern& pattern)
     {
+        if (!pattern.trimmed_size())
+        {
+            return false;
+        }
+
         asmjit::CodeHolder code;
         code.init(runtime_->getCodeInfo());
 
@@ -42,14 +47,15 @@ namespace mem
         cc.cmp(V_Current, V_End);
         cc.ja(L_NotFound);
 
-        const std::vector<mem::byte>& bytes = pattern.bytes();
-        const std::vector<mem::byte>& masks = pattern.masks();
-        const size_t size = pattern.size();
+        const byte* bytes = pattern.bytes();
+        const byte* masks = pattern.masks();
+
+        const size_t size = pattern.trimmed_size();
 
         for (size_t i = size; i--;)
         {
-            uint8_t byte = bytes.at(i);
-            uint8_t mask = !masks.empty() ? masks.at(i) : 0xFF;
+            const uint8_t byte = bytes[i];
+            const uint8_t mask = masks[i];
 
             if (mask != 0)
             {
