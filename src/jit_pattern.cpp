@@ -60,19 +60,21 @@ namespace mem
         const byte* bytes = pattern.bytes();
         const byte* masks = pattern.masks();
 
-        asmjit::CodeHolder code;
+        using namespace asmjit;
+
+        CodeHolder code;
         code.init(runtime->getCodeInfo());
 
-        asmjit::X86Compiler cc(&code);
-        cc.addFunc(asmjit::FuncSignatureT<const void*, const void*, const void*>());
+        X86Compiler cc(&code);
+        cc.addFunc(FuncSignatureT<const void*, const void*, const void*>());
 
-        asmjit::X86Gp V_Current = cc.newUIntPtr("Current");
-        asmjit::X86Gp V_End     = cc.newUIntPtr("End");
-        asmjit::X86Gp V_Temp    = cc.newUInt8("Temp");
+        X86Gp V_Current = cc.newUIntPtr("Current");
+        X86Gp V_End     = cc.newUIntPtr("End");
+        X86Gp V_Temp    = cc.newUInt8("Temp");
 
-        asmjit::Label L_ScanLoop = cc.newLabel();
-        asmjit::Label L_NotFound = cc.newLabel();
-        asmjit::Label L_Next     = cc.newLabel();
+        Label L_ScanLoop = cc.newLabel();
+        Label L_NotFound = cc.newLabel();
+        Label L_Next     = cc.newLabel();
 
         cc.setArg(0, V_Current);
         cc.setArg(1, V_End);
@@ -90,11 +92,11 @@ namespace mem
             {
                 if (mask == 0xFF)
                 {
-                    cc.cmp(asmjit::x86::byte_ptr(V_Current, static_cast<int32_t>(i)), byte);
+                    cc.cmp(x86::byte_ptr(V_Current, static_cast<int32_t>(i)), byte);
                 }
                 else
                 {
-                    cc.mov(V_Temp, asmjit::x86::byte_ptr(V_Current, static_cast<int32_t>(i)));
+                    cc.mov(V_Temp, x86::byte_ptr(V_Current, static_cast<int32_t>(i)));
                     cc.and_(V_Temp, mask);
                     cc.cmp(V_Temp, byte);
                 }
@@ -118,7 +120,7 @@ namespace mem
 
         scanner_func result = nullptr;
 
-        asmjit::Error err = runtime->add(&result, &code);
+        Error err = runtime->add(&result, &code);
 
         if (err && result)
         {

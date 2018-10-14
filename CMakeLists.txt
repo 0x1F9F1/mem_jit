@@ -12,7 +12,7 @@ add_library(${PROJECT_NAME} STATIC
     include/mem/jit_pattern.h
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC
+target_include_directories(${PROJECT_NAME}
     PUBLIC include
     PUBLIC vendor/mem
     PRIVATE vendor/asmjit/src
