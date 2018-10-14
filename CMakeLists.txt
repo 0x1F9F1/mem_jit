@@ -7,16 +7,15 @@ add_definitions(-DASMJIT_STATIC)
 
 add_subdirectory(vendor)
 
-file(GLOB ${PROJECT_NAME}_SRCS
-    *.cpp
-    *.h)
-
 add_library(${PROJECT_NAME} STATIC
-    ${${PROJECT_NAME}_SRCS})
+    src/jit_pattern.cpp
+    include/mem/jit_pattern.h
+)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-    vendor/asmjit/src
-    vendor/mem
+    PUBLIC include
+    PUBLIC vendor/mem
+    PRIVATE vendor/asmjit/src
 )
 
 target_link_libraries(${PROJECT_NAME}
