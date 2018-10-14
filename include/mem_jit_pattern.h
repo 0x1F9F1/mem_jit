@@ -32,10 +32,10 @@ namespace mem
     class jit_pattern
     {
     private:
-        using jitted_func = const void*(*)(const void* start, const void* end);
+        using scanner_func = const void*(*)(const void* start, const void* end);
 
         asmjit::JitRuntime* runtime_ {nullptr};
-        jitted_func scanner_ {nullptr};
+        scanner_func scanner_ {nullptr};
         size_t original_length_ {0};
 
         bool compile(const pattern& pattern);

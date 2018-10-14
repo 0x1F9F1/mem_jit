@@ -28,14 +28,15 @@ namespace mem
         cc.addFunc(asmjit::FuncSignatureT<const void*, const void*, const void*>());
 
         asmjit::X86Gp V_Current = cc.newUIntPtr("Current");
-        asmjit::X86Gp V_End = cc.newUIntPtr("End");
-
-        cc.setArg(0, V_Current);
-        cc.setArg(1, V_End);
+        asmjit::X86Gp V_End     = cc.newUIntPtr("End");
+        asmjit::X86Gp V_Temp    = cc.newUInt8("Temp");
 
         asmjit::Label L_ScanLoop = cc.newLabel();
         asmjit::Label L_NotFound = cc.newLabel();
-        asmjit::Label L_Next = cc.newLabel();
+        asmjit::Label L_Next     = cc.newLabel();
+
+        cc.setArg(0, V_Current);
+        cc.setArg(1, V_End);
 
         cc.bind(L_ScanLoop);
         cc.cmp(V_Current, V_End);
@@ -44,8 +45,6 @@ namespace mem
         const std::vector<mem::byte>& bytes = pattern.bytes();
         const std::vector<mem::byte>& masks = pattern.masks();
         const size_t size = pattern.size();
-
-        asmjit::X86Gp V_Temp = cc.newUInt8("Temp");
 
         for (size_t i = size; i--;)
         {
