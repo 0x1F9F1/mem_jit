@@ -49,6 +49,8 @@ namespace mem
 
         template <typename UnaryPredicate>
         pointer scan_predicate(region range, UnaryPredicate pred) const;
+
+        std::vector<pointer> scan_all(region range) const;
     };
 
     template<typename UnaryPredicate>
@@ -74,6 +76,20 @@ namespace mem
         }
 
         return nullptr;
+    }
+
+    inline std::vector<pointer> jit_pattern::scan_all(region range) const
+    {
+        std::vector<pointer> results;
+
+        scan_predicate(range, [&results] (pointer result)
+        {
+            results.emplace_back(result);
+
+            return false;
+        });
+
+        return results;
     }
 }
 

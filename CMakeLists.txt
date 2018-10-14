@@ -8,14 +8,13 @@ add_definitions(-DASMJIT_STATIC)
 add_subdirectory(vendor)
 
 file(GLOB ${PROJECT_NAME}_SRCS
-    src/*.cpp
-    include/*.h)
+    *.cpp
+    *.h)
 
-add_executable(${PROJECT_NAME}
+add_library(${PROJECT_NAME} STATIC
     ${${PROJECT_NAME}_SRCS})
 
-target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
-    include
+target_include_directories(${PROJECT_NAME} PUBLIC
     vendor/asmjit/src
     vendor/mem
 )
