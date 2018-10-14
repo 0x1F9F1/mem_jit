@@ -5,7 +5,7 @@ project(mem_jit CXX)
 set(ASMJIT_STATIC TRUE)
 add_definitions(-DASMJIT_STATIC)
 
-add_subdirectory(vendor)
+add_subdirectory(vendor EXCLUDE_FROM_ALL)
 
 add_library(${PROJECT_NAME} STATIC
     src/jit_pattern.cpp
