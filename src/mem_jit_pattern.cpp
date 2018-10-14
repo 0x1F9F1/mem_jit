@@ -21,10 +21,15 @@ namespace mem
 
     bool jit_pattern::compile(const pattern& pattern)
     {
-        if (!pattern.trimmed_size())
+        const size_t size = pattern.trimmed_size();
+
+        if (!size)
         {
             return false;
         }
+
+        const byte* bytes = pattern.bytes();
+        const byte* masks = pattern.masks();
 
         asmjit::CodeHolder code;
         code.init(runtime_->getCodeInfo());
@@ -46,11 +51,6 @@ namespace mem
         cc.bind(L_ScanLoop);
         cc.cmp(V_Current, V_End);
         cc.ja(L_NotFound);
-
-        const byte* bytes = pattern.bytes();
-        const byte* masks = pattern.masks();
-
-        const size_t size = pattern.trimmed_size();
 
         for (size_t i = size; i--;)
         {

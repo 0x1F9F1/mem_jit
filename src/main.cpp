@@ -7,11 +7,14 @@ int main(int argc, char* argv[])
 {
     asmjit::JitRuntime runtime;
 
-    mem::jit_pattern pattern(&runtime, "01 02 ? 04 05");
+    mem::pattern_settings settings {1,1};
+
+    mem::pattern pattern("01 02 ? 04 05", settings);
+    mem::jit_pattern jit_pattern(&runtime, pattern);
 
     uint8_t data[7] = { 0x50, 0x50, 0x01, 0x02, 0x03, 0x04, 0x05 };
 
-    pattern.scan_predicate({ data, 7 }, [&data] (mem::pointer result)
+    jit_pattern.scan_predicate({ data, 7 }, [&data] (mem::pointer result)
     {
         printf("%p = %zi\n", result.as<void*>(), result - data);
 
