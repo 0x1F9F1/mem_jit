@@ -11,7 +11,7 @@ namespace mem
     class jit_pattern
     {
     private:
-        using jitted_func = const void*(__fastcall*)(const void* start, const void* end);
+        using jitted_func = const void*(*)(const void* start, const void* end);
 
         JitRuntime* runtime_ {nullptr};
         jitted_func scanner_ {nullptr};
@@ -36,7 +36,7 @@ namespace mem
         code.init(runtime_->getCodeInfo());
 
         X86Compiler cc(&code);
-        cc.addFunc(FuncSignatureT<const void*, const void*, const void*>(CallConv::kIdHostFastCall));
+        cc.addFunc(FuncSignatureT<const void*, const void*, const void*>());
 
         X86Gp V_Current = cc.newUIntPtr("Current");
         X86Gp V_End = cc.newUIntPtr("End");
