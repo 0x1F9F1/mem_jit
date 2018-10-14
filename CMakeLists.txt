@@ -2,25 +2,17 @@ cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 project(mem_jit CXX)
 
-set(ASMJIT_STATIC TRUE)
-add_definitions(-DASMJIT_STATIC)
-
-add_subdirectory(vendor)
-
-file(GLOB ${PROJECT_NAME}_SRCS
-    *.cpp
-    *.h)
-
 add_library(${PROJECT_NAME} STATIC
-    ${${PROJECT_NAME}_SRCS})
+    src/sljit/sljit_src/sljitLir.cpp
+    src/sljit/sljit_src/sljitLir.h
+    src/mem_jit_pattern.cpp
+    include/mem/mem_jit_pattern.h)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-    vendor/asmjit/src
+    include
     vendor/mem
+    src/sljit/sljit_src
 )
-
-target_link_libraries(${PROJECT_NAME}
-    asmjit)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 11

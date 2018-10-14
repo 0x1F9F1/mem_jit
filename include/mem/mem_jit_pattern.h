@@ -22,11 +22,6 @@
 
 #include <mem_pattern.h>
 
-namespace asmjit
-{
-    class JitRuntime;
-}
-
 namespace mem
 {
     class jit_pattern
@@ -34,14 +29,13 @@ namespace mem
     private:
         using scanner_func = const void*(*)(const void* start, const void* end);
 
-        asmjit::JitRuntime* runtime_ {nullptr};
         scanner_func scanner_ {nullptr};
         size_t original_length_ {0};
 
         bool compile(const pattern& pattern);
 
     public:
-        jit_pattern(asmjit::JitRuntime* runtime, const pattern& pattern);
+        jit_pattern(const pattern& pattern);
         ~jit_pattern();
 
         jit_pattern(const jit_pattern&) = delete;
