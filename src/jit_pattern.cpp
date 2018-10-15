@@ -33,13 +33,8 @@ namespace mem
 
     jit_pattern::jit_pattern(jit_runtime* runtime, const pattern& pattern)
         : runtime_(runtime)
-        , original_length_(pattern.size())
-    {
-        if (original_length_)
-        {
-            scanner_ = runtime_->compile(pattern);
-        }
-    }
+        , scanner_(runtime_->compile(pattern))
+    { }
 
     jit_pattern::~jit_pattern()
     {
@@ -50,9 +45,9 @@ namespace mem
     {
         asmjit::JitRuntime* runtime = static_cast<asmjit::JitRuntime*>(context_);
 
-        const size_t size = pattern.trimmed_size();
+        const size_t trimmed_size = pattern.trimmed_size();
 
-        if (!size)
+        if (!trimmed_size)
         {
             return nullptr;
         }
@@ -79,11 +74,15 @@ namespace mem
         cc.setArg(0, V_Current);
         cc.setArg(1, V_End);
 
+        const size_t original_size = pattern.size();
+
+        cc.sub(V_End, (uint64_t) original_size);
+
         cc.bind(L_ScanLoop);
         cc.cmp(V_Current, V_End);
         cc.ja(L_NotFound);
 
-        for (size_t i = size; i--;)
+        for (size_t i = trimmed_size; i--;)
         {
             const uint8_t byte = bytes[i];
             const uint8_t mask = masks[i];

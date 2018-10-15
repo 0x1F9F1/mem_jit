@@ -47,7 +47,6 @@ namespace mem
     private:
         jit_runtime* runtime_ {nullptr};
         scanner_func scanner_ {nullptr};
-        size_t original_length_ {0};
 
     public:
         jit_pattern(jit_runtime* runtime, const pattern& pattern);
@@ -71,7 +70,7 @@ namespace mem
         }
 
         const void* current = range.start.as<const void*>();
-        const void* const end = range.start.add(range.size - original_length_).as<const void*>();
+        const void* const end = range.start.add(range.size).as<const void*>();
 
         while ((current = scanner_(current, end)) != nullptr)
         {
@@ -87,7 +86,7 @@ namespace mem
         return nullptr;
     }
 
-    inline std::vector<pointer> jit_pattern::scan_all(region range) const
+   inline std::vector<pointer> jit_pattern::scan_all(region range) const
     {
         std::vector<pointer> results;
 
