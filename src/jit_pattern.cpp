@@ -54,7 +54,7 @@ namespace mem
 
         if (!size)
         {
-            return false;
+            return nullptr;
         }
 
         const byte* bytes = pattern.bytes();
