@@ -53,7 +53,7 @@ namespace mem
         ~jit_pattern();
 
         jit_pattern(const jit_pattern&) = delete;
-        jit_pattern(jit_pattern&&) = delete;
+        jit_pattern(jit_pattern&& rhs);
 
         template <typename UnaryPredicate>
         pointer scan_predicate(region range, UnaryPredicate pred) const;

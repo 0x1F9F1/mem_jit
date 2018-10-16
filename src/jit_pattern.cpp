@@ -38,7 +38,19 @@ namespace mem
 
     jit_pattern::~jit_pattern()
     {
-        runtime_->release(scanner_);
+        if (runtime_ && scanner_)
+        {
+            runtime_->release(scanner_);
+        }
+    }
+
+    jit_pattern::jit_pattern(jit_pattern&& rhs)
+    {
+        runtime_ = rhs.runtime_;
+        scanner_ = rhs.scanner_;
+
+        rhs.runtime_ = nullptr;
+        rhs.scanner_ = nullptr;
     }
 
     scanner_func jit_runtime::compile(const pattern& pattern)
