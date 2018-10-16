@@ -9,22 +9,15 @@ add_subdirectory(vendor EXCLUDE_FROM_ALL)
 
 add_library(${PROJECT_NAME} STATIC
     src/jit_pattern.cpp
-    include/mem/jit_pattern.h
-)
+    include/mem/jit_pattern.h)
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC include
-    PUBLIC vendor/mem
-    PRIVATE vendor/asmjit/src
-)
+    PRIVATE vendor/asmjit/src)
 
 target_link_libraries(${PROJECT_NAME}
     asmjit mem)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 11
-    CXX_STANDARD_REQUIRED ON
-    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin
-)
+    CXX_STANDARD_REQUIRED ON)
