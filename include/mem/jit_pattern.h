@@ -20,7 +20,7 @@
 #if !defined(MEM_JIT_PATTERN_BRICK_H)
 #define MEM_JIT_PATTERN_BRICK_H
 
-#include <mem_pattern.h>
+#include <mem/pattern.h>
 
 namespace mem
 {
