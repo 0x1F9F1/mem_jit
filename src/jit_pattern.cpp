@@ -79,6 +79,7 @@ namespace mem
         X86Gp V_End     = cc.newUIntPtr("End");
         X86Gp V_Temp    = cc.newUIntPtr("Temp");
         X86Gp V_Temp8   = V_Temp.r8();
+        X86Gp V_Temp32  = V_Temp.r32();
         X86Gp V_SkipTable;
 
         Label L_ScanLoop = cc.newLabel();
@@ -99,6 +100,30 @@ namespace mem
             V_SkipTable = cc.newUIntPtr();
 
             cc.mov(V_SkipTable, (uint64_t) skips);
+        }
+
+        cc.jmp(L_ScanLoop);
+
+        cc.bind(L_Next);
+
+        if (skips)
+        {
+            const size_t skip_pos = pattern.skip_pos();
+
+            cc.movzx(V_Temp32, x86::byte_ptr(V_Current, static_cast<int32_t>(skip_pos)));
+
+            if (ASMJIT_ARCH_X64)
+            {
+                cc.add(V_Current, x86::ptr(V_SkipTable, V_Temp32, 3));
+            }
+            else /*if (ASMJIT_ARCH_X86)*/
+            {
+                cc.add(V_Current, x86::ptr((uint64_t) skips, V_Temp32, 2));
+            }
+        }
+        else
+        {
+            cc.add(V_Current, 1);
         }
 
         cc.bind(L_ScanLoop);
@@ -128,30 +153,6 @@ namespace mem
         }
 
         cc.ret(V_Current);
-
-        cc.bind(L_Next);
-
-        if (skips)
-        {
-            const size_t skip_pos = pattern.skip_pos();
-
-            cc.movzx(V_Temp, x86::byte_ptr(V_Current, static_cast<int32_t>(skip_pos)));
-
-            if (ASMJIT_ARCH_X64)
-            {
-                cc.add(V_Current, x86::ptr(V_SkipTable, V_Temp, 3));
-            }
-            else /*if (ASMJIT_ARCH_X86)*/
-            {
-                cc.add(V_Current, x86::ptr((uint64_t) skips, V_Temp, 2));
-            }
-        }
-        else
-        {
-            cc.inc(V_Current);
-        }
-
-        cc.jmp(L_ScanLoop);
 
         cc.bind(L_NotFound);
         cc.xor_(V_Current, V_Current);
