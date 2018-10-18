@@ -114,11 +114,11 @@ namespace mem
 
             if (ASMJIT_ARCH_X64)
             {
-                cc.add(V_Current, x86::ptr(V_SkipTable, V_Temp32, 3));
+                cc.add(V_Current, x86::qword_ptr(V_SkipTable, V_Temp32, 3));
             }
             else /*if (ASMJIT_ARCH_X86)*/
             {
-                cc.add(V_Current, x86::ptr((uint64_t) skips, V_Temp32, 2));
+                cc.add(V_Current, x86::dword_ptr((uint64_t) skips, V_Temp32, 2));
             }
         }
         else
