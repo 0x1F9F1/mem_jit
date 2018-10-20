@@ -55,7 +55,10 @@ namespace mem
 
     scanner_func jit_runtime::compile(const pattern& pattern)
     {
-        asmjit::JitRuntime* runtime = static_cast<asmjit::JitRuntime*>(context_);
+        if (!pattern)
+        {
+            return nullptr;
+        }
 
         const size_t trimmed_size = pattern.trimmed_size();
 
@@ -68,6 +71,8 @@ namespace mem
         const byte* masks = pattern.masks();
 
         using namespace asmjit;
+
+        JitRuntime* runtime = static_cast<JitRuntime*>(context_);
 
         CodeHolder code;
         code.init(runtime->getCodeInfo());
