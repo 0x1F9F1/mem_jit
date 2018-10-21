@@ -1,2 +1,5 @@
 add_subdirectory(asmjit)
-add_subdirectory(mem)
+
+if (NOT TARGET mem)
+    add_subdirectory(mem)
+endif()
