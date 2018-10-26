@@ -32,7 +32,7 @@ namespace mem
         void* context_ {nullptr};
 
     public:
-        jit_runtime();
+        explicit jit_runtime();
         ~jit_runtime();
 
         jit_runtime(const jit_runtime&) = delete;
@@ -49,7 +49,7 @@ namespace mem
         scanner_func scanner_ {nullptr};
 
     public:
-        jit_pattern(jit_runtime* runtime, const pattern& pattern);
+        explicit jit_pattern(jit_runtime* runtime, const pattern& pattern);
         ~jit_pattern();
 
         jit_pattern(const jit_pattern&) = delete;
