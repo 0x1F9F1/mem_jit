@@ -22,14 +22,151 @@
 
 namespace mem
 {
+    class jit_runtime::impl
+    {
+    private:
+        asmjit::JitRuntime runtime_;
+
+    public:
+        scanner_func compile(const pattern& pattern)
+        {
+            if (!pattern)
+            {
+                return nullptr;
+            }
+
+            const size_t trimmed_size = pattern.trimmed_size();
+
+            if (!trimmed_size)
+            {
+                return nullptr;
+            }
+
+            const byte* bytes = pattern.bytes();
+            const byte* masks = pattern.masks();
+
+            using namespace asmjit;
+
+            CodeHolder code;
+            code.init(runtime_.getCodeInfo());
+
+            X86Compiler cc(&code);
+            cc.addFunc(FuncSignatureT<const void*, const void*, const void*>());
+
+            X86Gp V_Current = cc.newUIntPtr("Current");
+            X86Gp V_End     = cc.newUIntPtr("End");
+            X86Gp V_Temp    = cc.newUIntPtr("Temp");
+            X86Gp V_Temp8   = V_Temp.r8();
+            X86Gp V_Temp32  = V_Temp.r32();
+            X86Gp V_SkipTable;
+
+            Label L_ScanLoop = cc.newLabel();
+            Label L_NotFound = cc.newLabel();
+            Label L_Next     = cc.newLabel();
+
+            cc.setArg(0, V_Current);
+            cc.setArg(1, V_End);
+
+            const size_t original_size = pattern.size();
+
+            cc.sub(V_End, (uint64_t) original_size);
+
+            const size_t* skips = pattern.bad_char_skips();
+
+            if (skips && ASMJIT_ARCH_X64)
+            {
+                V_SkipTable = cc.newUIntPtr();
+
+                cc.mov(V_SkipTable, (uint64_t) skips);
+            }
+
+            cc.jmp(L_ScanLoop);
+
+            cc.bind(L_Next);
+
+            if (skips)
+            {
+                const size_t skip_pos = pattern.skip_pos();
+
+                cc.movzx(V_Temp32, x86::byte_ptr(V_Current, static_cast<int32_t>(skip_pos)));
+
+                if (ASMJIT_ARCH_X64)
+                {
+                    cc.add(V_Current, x86::qword_ptr(V_SkipTable, V_Temp32, 3));
+                }
+                else /*if (ASMJIT_ARCH_X86)*/
+                {
+                    cc.add(V_Current, x86::dword_ptr((uint64_t) skips, V_Temp32, 2));
+                }
+            }
+            else
+            {
+                cc.add(V_Current, 1);
+            }
+
+            cc.bind(L_ScanLoop);
+            cc.cmp(V_Current, V_End);
+            cc.ja(L_NotFound);
+
+            for (size_t i = trimmed_size; i--;)
+            {
+                const uint8_t byte = bytes[i];
+                const uint8_t mask = masks[i];
+
+                if (mask != 0)
+                {
+                    if (mask == 0xFF)
+                    {
+                        cc.cmp(x86::byte_ptr(V_Current, static_cast<int32_t>(i)), byte);
+                    }
+                    else
+                    {
+                        cc.mov(V_Temp8, x86::byte_ptr(V_Current, static_cast<int32_t>(i)));
+                        cc.and_(V_Temp8, mask);
+                        cc.cmp(V_Temp8, byte);
+                    }
+
+                    cc.jne(L_Next);
+                }
+            }
+
+            cc.ret(V_Current);
+
+            cc.bind(L_NotFound);
+            cc.xor_(V_Current, V_Current);
+            cc.ret(V_Current);
+
+            cc.endFunc();
+            cc.finalize();
+
+            scanner_func result = nullptr;
+
+            Error err = runtime_.add(&result, &code);
+
+            if (err && result)
+            {
+                release(result);
+
+                result = nullptr;
+            }
+
+            return result;
+        }
+
+        void release(scanner_func scanner)
+        {
+            if (scanner)
+            {
+                runtime_.release(scanner);
+            }
+        }
+    };
+
     jit_runtime::jit_runtime()
-        : context_(new asmjit::JitRuntime())
+        : impl_(new impl())
     { }
 
-    jit_runtime::~jit_runtime()
-    {
-        delete static_cast<asmjit::JitRuntime*>(context_);
-    }
+    jit_runtime::~jit_runtime() = default;
 
     jit_pattern::jit_pattern(jit_runtime* runtime, const pattern& pattern)
         : runtime_(runtime)
@@ -55,138 +192,11 @@ namespace mem
 
     scanner_func jit_runtime::compile(const pattern& pattern)
     {
-        if (!pattern)
-        {
-            return nullptr;
-        }
-
-        const size_t trimmed_size = pattern.trimmed_size();
-
-        if (!trimmed_size)
-        {
-            return nullptr;
-        }
-
-        const byte* bytes = pattern.bytes();
-        const byte* masks = pattern.masks();
-
-        using namespace asmjit;
-
-        JitRuntime* runtime = static_cast<JitRuntime*>(context_);
-
-        CodeHolder code;
-        code.init(runtime->getCodeInfo());
-
-        X86Compiler cc(&code);
-        cc.addFunc(FuncSignatureT<const void*, const void*, const void*>());
-
-        X86Gp V_Current = cc.newUIntPtr("Current");
-        X86Gp V_End     = cc.newUIntPtr("End");
-        X86Gp V_Temp    = cc.newUIntPtr("Temp");
-        X86Gp V_Temp8   = V_Temp.r8();
-        X86Gp V_Temp32  = V_Temp.r32();
-        X86Gp V_SkipTable;
-
-        Label L_ScanLoop = cc.newLabel();
-        Label L_NotFound = cc.newLabel();
-        Label L_Next     = cc.newLabel();
-
-        cc.setArg(0, V_Current);
-        cc.setArg(1, V_End);
-
-        const size_t original_size = pattern.size();
-
-        cc.sub(V_End, (uint64_t) original_size);
-
-        const size_t* skips = pattern.bad_char_skips();
-
-        if (skips && ASMJIT_ARCH_X64)
-        {
-            V_SkipTable = cc.newUIntPtr();
-
-            cc.mov(V_SkipTable, (uint64_t) skips);
-        }
-
-        cc.jmp(L_ScanLoop);
-
-        cc.bind(L_Next);
-
-        if (skips)
-        {
-            const size_t skip_pos = pattern.skip_pos();
-
-            cc.movzx(V_Temp32, x86::byte_ptr(V_Current, static_cast<int32_t>(skip_pos)));
-
-            if (ASMJIT_ARCH_X64)
-            {
-                cc.add(V_Current, x86::qword_ptr(V_SkipTable, V_Temp32, 3));
-            }
-            else /*if (ASMJIT_ARCH_X86)*/
-            {
-                cc.add(V_Current, x86::dword_ptr((uint64_t) skips, V_Temp32, 2));
-            }
-        }
-        else
-        {
-            cc.add(V_Current, 1);
-        }
-
-        cc.bind(L_ScanLoop);
-        cc.cmp(V_Current, V_End);
-        cc.ja(L_NotFound);
-
-        for (size_t i = trimmed_size; i--;)
-        {
-            const uint8_t byte = bytes[i];
-            const uint8_t mask = masks[i];
-
-            if (mask != 0)
-            {
-                if (mask == 0xFF)
-                {
-                    cc.cmp(x86::byte_ptr(V_Current, static_cast<int32_t>(i)), byte);
-                }
-                else
-                {
-                    cc.mov(V_Temp8, x86::byte_ptr(V_Current, static_cast<int32_t>(i)));
-                    cc.and_(V_Temp8, mask);
-                    cc.cmp(V_Temp8, byte);
-                }
-
-                cc.jne(L_Next);
-            }
-        }
-
-        cc.ret(V_Current);
-
-        cc.bind(L_NotFound);
-        cc.xor_(V_Current, V_Current);
-        cc.ret(V_Current);
-
-        cc.endFunc();
-        cc.finalize();
-
-        scanner_func result = nullptr;
-
-        Error err = runtime->add(&result, &code);
-
-        if (err && result)
-        {
-            release(result);
-
-            result = nullptr;
-        }
-
-        return result;
+        return impl_->compile(pattern);
     }
 
     void jit_runtime::release(scanner_func scanner)
     {
-        asmjit::JitRuntime* runtime = static_cast<asmjit::JitRuntime*>(context_);
-
-        if (scanner)
-        {
-            runtime->release(scanner);
-        }
+        return impl_->release(scanner);
     }
 }

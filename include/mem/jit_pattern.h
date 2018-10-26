@@ -21,6 +21,7 @@
 #define MEM_JIT_PATTERN_BRICK_H
 
 #include <mem/pattern.h>
+#include <memory>
 
 namespace mem
 {
@@ -29,7 +30,9 @@ namespace mem
     class jit_runtime
     {
     private:
-        void* context_ {nullptr};
+        class impl;
+
+        std::unique_ptr<impl> impl_ {nullptr};
 
     public:
         explicit jit_runtime();
