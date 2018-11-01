@@ -32,7 +32,7 @@ namespace mem
     private:
         class impl;
 
-        std::unique_ptr<impl> impl_ {nullptr};
+        std::unique_ptr<impl> impl_;
 
     public:
         explicit jit_runtime();
