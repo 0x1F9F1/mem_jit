@@ -17,8 +17,8 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#if !defined(MEM_JIT_PATTERN_BRICK_H)
-#define MEM_JIT_PATTERN_BRICK_H
+#if !defined(MEM_JIT_SCANNER_BRICK_H)
+#define MEM_JIT_SCANNER_BRICK_H
 
 #include <mem/pattern.h>
 #include <memory>
@@ -45,27 +45,25 @@ namespace mem
         void release(scanner_func scanner);
     };
 
-    class jit_pattern
+    class jit_scanner
     {
     private:
         jit_runtime* runtime_ {nullptr};
         scanner_func scanner_ {nullptr};
 
     public:
-        explicit jit_pattern(jit_runtime* runtime, const pattern& pattern);
-        ~jit_pattern();
+        explicit jit_scanner(jit_runtime* runtime, const pattern& pattern);
+        ~jit_scanner();
 
-        jit_pattern(const jit_pattern&) = delete;
-        jit_pattern(jit_pattern&& rhs);
+        jit_scanner(const jit_scanner&) = delete;
+        jit_scanner(jit_scanner&& rhs);
 
         template <typename UnaryPredicate>
-        pointer scan_predicate(region range, UnaryPredicate pred) const;
-
-        std::vector<pointer> scan_all(region range) const;
+        pointer operator()(region range, UnaryPredicate pred) const;
     };
 
     template<typename UnaryPredicate>
-    pointer inline jit_pattern::scan_predicate(region range, UnaryPredicate pred) const
+    pointer inline jit_scanner::operator()(region range, UnaryPredicate pred) const
     {
         if (!scanner_)
         {
@@ -88,20 +86,6 @@ namespace mem
 
         return nullptr;
     }
-
-   inline std::vector<pointer> jit_pattern::scan_all(region range) const
-    {
-        std::vector<pointer> results;
-
-        scan_predicate(range, [&results] (pointer result)
-        {
-            results.emplace_back(result);
-
-            return false;
-        });
-
-        return results;
-    }
 }
 
-#endif // MEM_JIT_PATTERN_BRICK_H
+#endif // MEM_JIT_SCANNER_BRICK_H

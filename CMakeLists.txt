@@ -8,8 +8,8 @@ add_definitions(-DASMJIT_STATIC)
 add_subdirectory(vendor EXCLUDE_FROM_ALL)
 
 add_library(${PROJECT_NAME} STATIC
-    src/jit_pattern.cpp
-    include/mem/jit_pattern.h)
+    src/jit_scanner.cpp
+    include/mem/jit_scanner.h)
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC include

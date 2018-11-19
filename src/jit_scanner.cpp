@@ -17,7 +17,8 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <mem/jit_pattern.h>
+#include "mem/jit_scanner.h"
+
 #include <asmjit/asmjit.h>
 
 namespace mem
@@ -53,61 +54,81 @@ namespace mem
             X86Compiler cc(&code);
             cc.addFunc(FuncSignatureT<const void*, const void*, const void*>());
 
-            X86Gp V_Current = cc.newUIntPtr("Current");
-            X86Gp V_End     = cc.newUIntPtr("End");
-            X86Gp V_Temp    = cc.newUIntPtr("Temp");
+            X86Gp V_Current   = cc.newUIntPtr("Current");
+            X86Gp V_End       = cc.newUIntPtr("End");
+            X86Gp V_Temp      = cc.newUIntPtr("Temp");
+            X86Xmm V_ScanMask = cc.newXmmReg(TypeId::kU8x16);
+            X86Xmm V_TempMask = cc.newXmmReg(TypeId::kU8x16);
+
             X86Gp V_Temp8   = V_Temp.r8();
             X86Gp V_Temp32  = V_Temp.r32();
-            X86Gp V_SkipTable;
 
-            Label L_ScanLoop = cc.newLabel();
-            Label L_NotFound = cc.newLabel();
-            Label L_Next     = cc.newLabel();
+            Label L_ScanLoop  = cc.newLabel();
+            Label L_NotFound  = cc.newLabel();
+            Label L_Next      = cc.newLabel();
+            Label L_FindMain  = cc.newLabel();
+            Label L_FindTail  = cc.newLabel();
+            Label L_FindTail2 = cc.newLabel();
+            Label L_Found = cc.newLabel();
 
             cc.setArg(0, V_Current);
             cc.setArg(1, V_End);
 
             const size_t original_size = pattern.size();
+            const size_t skip_pos = pattern.get_skip_pos();
 
-            cc.sub(V_End, (uint64_t) original_size);
-
-            const size_t* skips = pattern.bad_char_skips();
-
-            if (skips && ASMJIT_ARCH_X64)
+            if (skip_pos != SIZE_MAX)
             {
-                V_SkipTable = cc.newUIntPtr();
-
-                cc.mov(V_SkipTable, (uint64_t) skips);
+                cc.movdqa(V_ScanMask, cc.newXmmConst(ConstScope::kConstScopeLocal, Data128::fromU8(bytes[skip_pos])));
             }
 
+            cc.sub(V_End, original_size);
+
+            cc.cmp(V_Current, V_End);
+            cc.ja(L_NotFound);
             cc.jmp(L_ScanLoop);
 
-            cc.bind(L_Next);
-
-            if (skips)
+            if (skip_pos != SIZE_MAX)
             {
-                const size_t skip_pos = pattern.skip_pos();
+            cc.bind(L_FindMain);
+                cc.add(V_Current, 16);
 
-                cc.movzx(V_Temp32, x86::byte_ptr(V_Current, static_cast<int32_t>(skip_pos)));
+            cc.bind(L_Next);
+                cc.add(V_Current, 1);
+                cc.lea(V_Temp, x86::ptr(V_Current, 16));
+                cc.cmp(V_Temp, V_End);
+                cc.ja(L_FindTail);
 
-                if (ASMJIT_ARCH_X64)
-                {
-                    cc.add(V_Current, x86::qword_ptr(V_SkipTable, V_Temp32, 3));
-                }
-                else /*if (ASMJIT_ARCH_X86)*/
-                {
-                    cc.add(V_Current, x86::dword_ptr((uint64_t) skips, V_Temp32, 2));
-                }
+                cc.lddqu(V_TempMask, x86::ptr_128(V_Current, int32_t(skip_pos)));
+                cc.pcmpeqb(V_TempMask, V_ScanMask);
+                cc.pmovmskb(V_Temp32, V_TempMask);
+
+                cc.test(V_Temp32, V_Temp32);
+                cc.jz(L_FindMain);
+
+                cc.bsf(V_Temp32, V_Temp32);
+                cc.add(V_Current, V_Temp);
+                cc.jmp(L_ScanLoop);
+
+            cc.bind(L_FindTail2);
+                cc.add(V_Current, 1);
+
+            cc.bind(L_FindTail);
+                cc.cmp(V_Current, V_End);
+                cc.ja(L_NotFound);
+
+                cc.cmp(x86::byte_ptr(V_Current, int32_t(skip_pos)), bytes[skip_pos]);
+                cc.jnz(L_FindTail2);
             }
             else
             {
+            cc.bind(L_Next);
                 cc.add(V_Current, 1);
+                cc.cmp(V_Current, V_End);
+                cc.ja(L_NotFound);
             }
 
-            cc.bind(L_ScanLoop);
-            cc.cmp(V_Current, V_End);
-            cc.ja(L_NotFound);
-
+        cc.bind(L_ScanLoop);
             for (size_t i = trimmed_size; i--;)
             {
                 const uint8_t byte = bytes[i];
@@ -117,11 +138,11 @@ namespace mem
                 {
                     if (mask == 0xFF)
                     {
-                        cc.cmp(x86::byte_ptr(V_Current, static_cast<int32_t>(i)), byte);
+                        cc.cmp(x86::byte_ptr(V_Current, int32_t(i)), byte);
                     }
                     else
                     {
-                        cc.mov(V_Temp8, x86::byte_ptr(V_Current, static_cast<int32_t>(i)));
+                        cc.mov(V_Temp8, x86::byte_ptr(V_Current, int32_t(i)));
                         cc.and_(V_Temp8, mask);
                         cc.cmp(V_Temp8, byte);
                     }
@@ -130,10 +151,12 @@ namespace mem
                 }
             }
 
-            cc.ret(V_Current);
+            cc.jmp(L_Found);
 
-            cc.bind(L_NotFound);
+        cc.bind(L_NotFound);
             cc.xor_(V_Current, V_Current);
+
+        cc.bind(L_Found);
             cc.ret(V_Current);
 
             cc.endFunc();
@@ -168,12 +191,12 @@ namespace mem
 
     jit_runtime::~jit_runtime() = default;
 
-    jit_pattern::jit_pattern(jit_runtime* runtime, const pattern& pattern)
+    jit_scanner::jit_scanner(jit_runtime* runtime, const pattern& pattern)
         : runtime_(runtime)
         , scanner_(runtime_->compile(pattern))
     { }
 
-    jit_pattern::~jit_pattern()
+    jit_scanner::~jit_scanner()
     {
         if (runtime_ && scanner_)
         {
@@ -181,7 +204,7 @@ namespace mem
         }
     }
 
-    jit_pattern::jit_pattern(jit_pattern&& rhs)
+    jit_scanner::jit_scanner(jit_scanner&& rhs)
     {
         runtime_ = rhs.runtime_;
         scanner_ = rhs.scanner_;
