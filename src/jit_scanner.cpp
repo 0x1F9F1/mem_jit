@@ -31,6 +31,15 @@ namespace mem
     public:
         scanner_func compile(const pattern& pattern)
         {
+            using namespace asmjit;
+
+            const CpuInfo& host_info = CpuInfo::getHost();
+
+            if (!host_info.hasFeature(CpuInfo::kX86FeatureSSE2))
+            {
+                return nullptr;
+            }
+
             if (!pattern)
             {
                 return nullptr;
@@ -46,10 +55,10 @@ namespace mem
             const byte* bytes = pattern.bytes();
             const byte* masks = pattern.masks();
 
-            using namespace asmjit;
 
             CodeHolder code;
             code.init(runtime_.getCodeInfo());
+
 
             X86Compiler cc(&code);
             cc.addFunc(FuncSignatureT<const void*, const void*, const void*>());
@@ -99,7 +108,13 @@ namespace mem
                 cc.cmp(V_Temp, V_End);
                 cc.ja(L_FindTail);
 
-                cc.lddqu(V_TempMask, x86::ptr_128(V_Current, int32_t(skip_pos)));
+                X86Mem src = x86::ptr(V_Current, int32_t(skip_pos));
+
+                if (host_info.hasFeature(CpuInfo::kX86FeatureSSE3))
+                    cc.lddqu(V_TempMask, src);
+                else
+                    cc.movdqu(V_TempMask, src);
+
                 cc.pcmpeqb(V_TempMask, V_ScanMask);
                 cc.pmovmskb(V_Temp32, V_TempMask);
 
