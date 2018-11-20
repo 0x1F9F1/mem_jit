@@ -35,10 +35,8 @@ namespace mem
 
             const CpuInfo& host_info = CpuInfo::getHost();
 
-            if (!host_info.hasFeature(CpuInfo::kX86FeatureSSE2))
-            {
-                return nullptr;
-            }
+            const bool has_sse2 = host_info.hasFeature(CpuInfo::kX86FeatureSSE2);
+            const bool has_sse3 = host_info.hasFeature(CpuInfo::kX86FeatureSSE3);
 
             if (!pattern)
             {
@@ -55,10 +53,8 @@ namespace mem
             const byte* bytes = pattern.bytes();
             const byte* masks = pattern.masks();
 
-
             CodeHolder code;
             code.init(runtime_.getCodeInfo());
-
 
             X86Compiler cc(&code);
             cc.addFunc(FuncSignatureT<const void*, const void*, const void*>());
@@ -84,7 +80,7 @@ namespace mem
             cc.setArg(1, V_End);
 
             const size_t original_size = pattern.size();
-            const size_t skip_pos = pattern.get_skip_pos();
+            const size_t skip_pos      = has_sse2 ? pattern.get_skip_pos() : SIZE_MAX;
 
             if (skip_pos != SIZE_MAX)
             {
@@ -110,7 +106,7 @@ namespace mem
 
                 X86Mem src = x86::ptr(V_Current, int32_t(skip_pos));
 
-                if (host_info.hasFeature(CpuInfo::kX86FeatureSSE3))
+                if (has_sse3)
                     cc.lddqu(V_TempMask, src);
                 else
                     cc.movdqu(V_TempMask, src);
