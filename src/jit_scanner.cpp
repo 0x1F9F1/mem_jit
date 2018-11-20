@@ -43,7 +43,7 @@ namespace mem
                 return nullptr;
             }
 
-            const size_t trimmed_size = pattern.trimmed_size();
+            const size_t trimmed_size = pattern.size();
 
             if (!trimmed_size)
             {
@@ -62,6 +62,7 @@ namespace mem
             X86Gp V_Current   = cc.newUIntPtr("Current");
             X86Gp V_End       = cc.newUIntPtr("End");
             X86Gp V_Temp      = cc.newUIntPtr("Temp");
+            X86Gp V_Temp2     = cc.newUIntPtr("Temp2");
             X86Xmm V_ScanMask = cc.newXmmReg(TypeId::kU8x16);
             X86Xmm V_TempMask = cc.newXmmReg(TypeId::kU8x16);
 
@@ -72,6 +73,7 @@ namespace mem
             Label L_NotFound  = cc.newLabel();
             Label L_Next      = cc.newLabel();
             Label L_FindMain  = cc.newLabel();
+            Label L_FindMain2 = cc.newLabel();
             Label L_FindTail  = cc.newLabel();
             Label L_FindTail2 = cc.newLabel();
             Label L_Found = cc.newLabel();
@@ -95,16 +97,15 @@ namespace mem
 
             if (skip_pos != SIZE_MAX)
             {
-            cc.bind(L_FindMain);
-                cc.add(V_Current, 16);
-
             cc.bind(L_Next);
                 cc.add(V_Current, 1);
-                cc.lea(V_Temp, x86::ptr(V_Current, 16));
-                cc.cmp(V_Temp, V_End);
+                cc.lea(V_Temp2, x86::ptr(V_Current, 16));
+
+                cc.cmp(V_Temp2, V_End);
                 cc.ja(L_FindTail);
 
-                X86Mem src = x86::ptr(V_Current, int32_t(skip_pos));
+            cc.bind(L_FindMain);
+                X86Mem src = x86::ptr_128(V_Current, int32_t(skip_pos));
 
                 if (has_sse3)
                     cc.lddqu(V_TempMask, src);
@@ -115,8 +116,16 @@ namespace mem
                 cc.pmovmskb(V_Temp32, V_TempMask);
 
                 cc.test(V_Temp32, V_Temp32);
-                cc.jz(L_FindMain);
+                cc.jnz(L_FindMain2);
 
+                cc.add(V_Temp2, 16);
+                cc.add(V_Current, 16);
+                cc.cmp(V_Temp2, V_End);
+                cc.jbe(L_FindMain);
+
+                cc.jmp(L_FindTail);
+
+            cc.bind(L_FindMain2);
                 cc.bsf(V_Temp32, V_Temp32);
                 cc.add(V_Current, V_Temp);
                 cc.jmp(L_ScanLoop);
@@ -142,20 +151,20 @@ namespace mem
         cc.bind(L_ScanLoop);
             for (size_t i = trimmed_size; i--;)
             {
-                const uint8_t byte = bytes[i];
-                const uint8_t mask = masks[i];
+                const byte value = bytes[i];
+                const byte mask = masks[i];
 
                 if (mask != 0)
                 {
                     if (mask == 0xFF)
                     {
-                        cc.cmp(x86::byte_ptr(V_Current, int32_t(i)), byte);
+                        cc.cmp(x86::byte_ptr(V_Current, int32_t(i)), value);
                     }
                     else
                     {
                         cc.mov(V_Temp8, x86::byte_ptr(V_Current, int32_t(i)));
                         cc.and_(V_Temp8, mask);
-                        cc.cmp(V_Temp8, byte);
+                        cc.cmp(V_Temp8, value);
                     }
 
                     cc.jne(L_Next);
